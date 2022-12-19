@@ -1,0 +1,418 @@
+---
+title: "226305 SNA Testat"
+subtitle: "Verbindungen innerhalb des Reichsbürger-Netzwerkes"
+author: "Jonas Brings"
+date: '2022-16-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	message = FALSE,
+	warning = FALSE,
+	include = FALSE)
+library(igraph)
+```
+
+# Testat
+
+## Daten und Codebuch
+
+Die Daten und das Codebuch sind in meinem
+[Github-Account](https://github.com/Jonasxbn/reichsbuerger)
+hinterlegt. Erhoben wurden die
+[Daten](https://taz.de/Razzia-gegen-Reichsbuerger/!5898636/) und (https://www.belltower.news/update-reichsbuerger-razzien-das-breite-netzwerk-der-revolutionsbereiten-reichsbuergerinnen-144131/)
+aus der TAZ und den Belltower News.
+
+
+
+## Edge-Attribute
+
+from = ID des Knoten Mitglied
+to = ID des Knoten Mitgliedschaft
+relation: 1 = Freunde, 2 = Kollegen, 3 = Mitglied, 4 = Gründer, 5 = (Ex)Angestellter, 6 = User, 7 = Teilnehmer
+
+## Node-Attribute
+
+id = ID aus der Edgelist
+name = Voller Name/Bezeichnung
+sex = Geschlecht (1 = female, 2= male)
+sector = gesellschaftlicher Bereich (1= Adel, 2=Politik, 3=Militär, 4=Gesundheit, 5=Spiritualität, 6= Recht, 7=Sonstiges)
+type = 1 = Person, 2 = Organisation
+region = 1 = Baden-Württemberg, 2 = Bayern, 3 = Berlin, 4 = Hessen, 5 = Niedersachsen, 6 = Sachsen
+power = Status in der Organisation ( 1 = Rädelsführung, 2 = Ministerfunktion, 3 = leitende Funktion, 4 = Mitglied)
+category = 1 = Militärarm, 2 = Rat, 3 = Sonstiges
+
+
+# Netzwerk einlesen
+
+```{r Netzwerk einlesen}
+# Programmbibliothek laden
+library(igraph)
+
+# Einlesen der Edge- und Nodelist
+edges <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/edgelist.csv", header=T, as.is=T, sep = ",")
+
+nodes <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/nodelist.csv", header=T, as.is=T, sep = ",")
+
+
+# Matrix erstellen
+edgematrix <-as.matrix(edges)
+
+# Zusammenführen von Edge- und Nodelist als igraph-Objekt r
+r <- graph_from_data_frame(d=edgematrix, vertices=nodes, directed=T)
+
+r
+```
+
+
+# einfache Visualisierung
+
+Ich verschaffe mir zuerst einen Überblick über das gesamte Netzwerk, indem ich eine einfache Visualisierung erstelle.
+```{r Netzwerk anzeigen, fig.height=6, fig.width=9}
+
+# Einfacher plot
+plot(r,
+     asp=0,
+     set.seed=12,
+     vertex.size=5,
+     layout=layout_with_kk,
+     main="Übersicht Reichsbürger Netzwerk")
+```
+
+Ich sehe, dass das Netzwerk aus 37 Knoten und 69 Kanten besteht. Damit das Netzwerk übersichtlicher wird, färbe ich die Knoten anhand der gesellschaftlichen Sektoren ein.
+
+#Knoten Analyse
+```{r Knoten analysieren}
+# Attribute anzeigen lassen
+list.vertex.attributes(r)
+
+
+# Farben festlegen für das Vertex-Attribut "sector"
+
+V(r)[V(r)$sector == 1]$color <- "yellow" #Adel
+V(r)[V(r)$sector == 2]$color <- "blue" #Politik
+V(r)[V(r)$sector == 3]$color <- "red" #Militär
+V(r)[V(r)$sector == 4]$color <- "green" #Gesundheit
+V(r)[V(r)$sector == 5]$color <- "purple" #Spiritualität
+V(r)[V(r)$sector == 6]$color <- "black" #Recht
+V(r)[V(r)$sector == 7]$color <- "grey" #Sonstiges
+
+#Visualisierung
+plot(r,
+     layout=layout_with_kk,
+     main ="Reichsbürgernetzwerk",
+		 sub = "aufgeteilt nach gesellschaftlichem Sektor",
+		 asp=0, 
+		 set.seed=12,
+     layout=layout_with_kk,
+     vertex.size=10,
+     edge.arrow.size=.2,
+     edge.color="grey")
+```
+
+## Analyse der Sektoren
+Wenn ich das Vertex-Attribut "sector" farblich voneinander abgrenze, lässt sich gut sehen, aus welchen gesellschaftlichen Sektoren die festgenommenen Reichsbüger stammen. Ich sehen deutlich, dass die Mitglieder vor allem aus dem Militär und dem politischen Bereich stammen. 
+
+
+
+
+#Edge-Analyse
+Ich möchte jetzt die Verbindungen unter den einzelnen Personen näher untersuchen. Dazu färbe ich die Kanten anhand der unterschiedlichen Beziehungsarten (Edge Attribut: relation) ein.
+
+```{r Edge Analyse}
+# Programmbibliothek laden
+library(igraph)
+
+# Einlesen der Edge- und Nodelist
+edges <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/edgelist.csv", header=T, as.is=T, sep = ",")
+
+nodes <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/nodelist.csv", header=T, as.is=T, sep = ",")
+
+
+# Matrix erstellen
+edgematrix <-as.matrix(edges)
+
+# Zusammenführen von Edge- und Nodelist als igraph-Objekt r
+r <- graph_from_data_frame(d=edgematrix, vertices=nodes, directed=T)
+
+r
+
+# Edge Attribute anzeigen
+list.edge.attributes(r)
+
+# Kanten festlegen für das Edge-Attribut "relation"
+E(r)[E(r)$relation == 5]$color <-"red" # (Ex-Angestellter)
+E(r)[E(r)$relation == 7]$color <-"blue" # (Teilnehmer)
+E(r)[E(r)$relation == 3]$color <-"black" # (Mitglied)
+E(r)[E(r)$relation == 1]$color <- "green" # (Freunde)
+E(r)[E(r)$relation == 2]$color <- "grey" # (Kollegen)
+E(r)[E(r)$relation == 4]$color <- "purple" # (Kollegen)
+
+
+
+# Visualisierung
+
+plot(r,
+     layout=layout_with_kk,
+     main ="Reichsbürgernetzwerk",
+		 sub = "nach Beziehungsart",
+		 asp=0, 
+		 set.seed=12,
+		 default=3:4,
+     layout=layout_with_kk,
+     vertex.size=10,
+		 edge.arrow.size=.2,
+		 vertex.color="grey")
+
+```
+##Edge-Analyse Auswertung
+Ich sehe, dass es viele verschiedene Beziehungsarten unter den Festgenommenen gibt. Aus dem Edge Attribut "relation" lässt sich erkennen, welche Beziehung sie zueinander haben. 
+
+# Two-Mode Netzwerk
+
+```{r Two-Mode Netzwerk erstellen}
+library(igraph)
+
+# Einlesen der Edge- und Nodelist
+edges <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/edgelist.csv", header=T, as.is=T, sep = ",")
+
+nodes <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/nodelist.csv", header=T, as.is=T, sep = ",")
+
+
+# Matrix erstellen
+edgematrix <-as.matrix(edges)
+
+# Zusammenführen von Edge- und Nodelist als igraph-Objekt r
+r <- graph_from_data_frame(d=edgematrix, vertices=nodes, directed=T)
+
+r
+
+# Vertex-Attribute anzeigen lassen
+list.vertex.attributes(r)
+
+# Kanten festlegen für das Edge-Attribut "relation"
+E(r)[E(r)$relation == 5]$color <-"red" # (Ex-Angestellter)
+E(r)[E(r)$relation == 7]$color <-"blue" # (Teilnehmer)
+E(r)[E(r)$relation == 3]$color <-"black" # (Mitglied)
+E(r)[E(r)$relation == 1]$color <- "green" # (Freunde)
+E(r)[E(r)$relation == 2]$color <- "grey" # (Kollegen)
+E(r)[E(r)$relation == 4]$color <- "purple" # (Kollegen)
+
+# Formen für two-Netzwerk festlegen
+V(r)[V(r)$type == 1]$shape <- "circle" # Person
+V(r)[V(r)$type == 2]$shape <- "square" # Organisation
+
+plot(r,
+     layout=layout_with_kk,
+     main ="Reichsbürgernetzwerk",
+		 sub = "two-mode Netzwerk nach Beziehungsart",
+		 asp=0, 
+		 set.seed=12,
+		 default=3:4,
+     layout=layout_with_kk,
+     vertex.size=12,
+		 vertex.color="grey",
+		 edge.arrow.size=.2)
+
+
+```
+##Two-Mode Analyse
+Da das Netzwerk aus Personen und Organisationen besteht, ist es sinnvoll, das zu visualisieren. Viele der Mitglieder haben an gemeinsamen Veranstaltungen teilgenommen oder sind (ehemalige) Angestellte. Daraus lassen sich Schlüsse ziehen, welche Mitglieder sich untereinander kennen und wodurch diese Verbindungen entstanden sind.
+
+
+#Detailauswertung
+```{r Netzwerkmaße}
+#Indegree
+ind_r <- degree(r, mode="in")
+which.max(ind_r)
+
+#Betweenness
+br <- betweenness(r, normalized=T)
+which.max(betweenness(r))
+
+```
+## Netzwerkmaße
+Damit ich die wichtigsten Knoten in diesem Netzwerk nochmal analysieren kann, schaue ich auf die Netzwerk- und Zentralitätsmaße. Der Knoten mit dem höchsten In-Degree Wert ist Nummer 26. Die KSK Station in Calw ist demnach ein wichtiger Knotenpunkt für die Organisation des Reichsbürger-Netzwerkes. Wie bereits vermutet, ist Heinrich XIII Prinz Reuss der Kopf der Organisation. Das lässt sich daraus schließen, dass er den höchsten Betweenness-Wert hat und somit eine wichtige Brücke zur Verbindung innerhalb des Netzwerkes ist.
+
+
+#Teilnehmeranalyse
+Ich habe bereits herausgefunden, dass viele der Mitglieder an einer bestimmten Veranstaltung teilgenommen haben. Daher möchte ich mir dieses Teilnetzwerk  nochmal genauer anschauen.
+```{r Teilnehmernetzwerk}
+# Programmbibliothek laden
+library(igraph)
+
+# Einlesen der Edge- und Nodelist
+edges <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/edgelist.csv", header=T, as.is=T, sep = ",")
+
+nodes <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/nodelist.csv", header=T, as.is=T, sep = ",")
+
+
+# Matrix erstellen
+edgematrix <-as.matrix(edges)
+
+# Zusammenführen von Edge- und Nodelist als igraph-Objekt r
+r <- graph_from_data_frame(d=edgematrix, vertices=nodes, directed=T)
+
+r
+
+# Trennung nach Teilnehmern
+participants <- subgraph.edges(r, E(r)[relation==7]) 
+
+# Formen für two-Netzwerk festlegen
+V(participants)[V(participants)$type == 1]$shape <- "circle" # Person
+V(participants)[V(participants)$type == 2]$shape <- "square" # Organisation
+
+# Farben festlegen für das Vertex-Attribut "sector"
+V(participants)[V(participants)$sector == 2]$color <- "blue" #Politik
+V(participants)[V(participants)$sector == 3]$color <- "red" #Militär
+V(participants)[V(participants)$sector == 7]$color <- "grey" #Sonstiges
+
+# Visualisierung
+plot(participants,
+     layout=layout_with_kk,
+     main ="Teilnehmernetzwerk",
+		 sub = "two-mode Netzwerk",
+		 asp=0, 
+		 set.seed=12,
+		 default=3:4,
+     layout=layout_with_kk,
+     vertex.size=12,
+		 edge.arrow.size=.6)
+
+
+```
+##Teilnehmeranalyse Auswertung
+Ich sehe, dass die Teilnahme an der Reservisten-Aktion anlässlich der Flutkatastrophe im Ahrtal ein wichtiger Knotenpunkt für die Vernetzung von militärischen Mitgliedern der Reichsbürger-Szene war.
+
+#Angestellten Analyse
+Der KSK Stützpunkt scheint ein wichtiger Knotenpunkt zu sein. Deswegen möchte ich mir das Teilnetzwerk der ehemaligen Angestellten nochmal genauer angucken.
+```{r Angestellten Netzwerk}
+# Programmbibliothek laden
+library(igraph)
+
+# Einlesen der Edge- und Nodelist
+edges <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/edgelist.csv", header=T, as.is=T, sep = ",")
+
+nodes <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/nodelist.csv", header=T, as.is=T, sep = ",")
+
+
+# Matrix erstellen
+edgematrix <-as.matrix(edges)
+
+# Zusammenführen von Edge- und Nodelist als igraph-Objekt r
+r <- graph_from_data_frame(d=edgematrix, vertices=nodes, directed=T)
+
+r
+
+# Trennung nach (Ex-) Angestellten
+employees <- subgraph.edges(r, E(r)[relation==5]) 
+
+# Formen für two-Netzwerk festlegen
+V(employees)[V(employees)$type == 1]$shape <- "circle" # Person
+V(employees)[V(employees)$type == 2]$shape <- "square" # Organisation
+
+# Farben festlegen für das Vertex-Attribut "sector"
+V(employees)[V(employees)$sector == 2]$color <- "blue" #Politik
+V(employees)[V(employees)$sector == 3]$color <- "red" #Militär
+V(employees)[V(employees)$sector == 7]$color <- "grey" #Sonstiges
+
+# Visualisierung
+plot(employees,
+     layout=layout_with_kk,
+     main ="Angestellten-Netzwerk",
+		 sub = "der festgenommenen Reichsbürger",
+		 asp=0, 
+		 set.seed=12,
+		 default=3:4,
+     layout=layout_with_kk,
+     vertex.size=12)
+
+
+```
+##Angestellten-Analyse
+In diesem Teilnetzwerk sehen wir deutlich, dass  viele der festgenommenen Reichsbürger (ehemalige) Mitarbeiter der Bundeswehr waren oder sind, die in Verbindung mit dem KSK Stützpunkt in Calw stehen. Das lässt darauf schließen, dass sich die Personen darüber kennengelernt und vernetzt haben.
+
+#Teilnetzwerke
+Da sich die führenden Mitglieder der Reichsbürger in den "militärischen Arm" und den "Rat" aufgeteilt haben, möchte ich wissen, welche Mitglieder in den "Gremien" sitzen und wie sie miteinander verbunden sind.
+```{r Teilnetzwerke erstellen}
+
+# Programmbibliothek laden
+library(igraph)
+
+# Einlesen der Edge- und Nodelist
+edges <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/edgelist.csv", header=T, as.is=T, sep = ",")
+
+nodes <- read.csv("https://raw.githubusercontent.com/Jonasxbn/reichsbuerger/main/nodelist.csv", header=T, as.is=T, sep = ",")
+
+
+# Matrix erstellen
+edgematrix <-as.matrix(edges)
+
+# Zusammenführen von Edge- und Nodelist als igraph-Objekt r
+r <- graph_from_data_frame(d=edgematrix, vertices=nodes, directed=T)
+
+r
+
+# Farben festlegen für das Vertex-Attribut "sector"
+
+V(r)[V(r)$sector == 1]$color <- "yellow" #Adel
+V(r)[V(r)$sector == 2]$color <- "blue" #Politik
+V(r)[V(r)$sector == 3]$color <- "red" #Militär
+V(r)[V(r)$sector == 4]$color <- "green" #Gesundheit
+V(r)[V(r)$sector == 5]$color <- "purple" #Spiritualität
+V(r)[V(r)$sector == 6]$color <- "black" #Recht
+V(r)[V(r)$sector == 7]$color <- "grey" #Sonstiges
+
+# Formen für two-Netzwerk festlegen
+V(r)[V(r)$type == 1]$shape <- "circle" # Person
+V(r)[V(r)$type == 2]$shape <- "square" # Organisation
+
+#Aufteilung der Arme
+
+r_military <- delete_vertices(r, V(r)[V(r)$category != 1]) 
+r_rat <- delete_vertices(r, V(r)[V(r)$category != 2]) 
+
+#Visualisierung
+
+plot(r_military,
+     layout=layout_with_kk,
+     main ="Reichsbürger-Netzwerk",
+		 sub = "militärischer Arm",
+		 asp=0, 
+		 set.seed=12,
+		 default=3:4,
+     layout=layout_with_kk,
+     vertex.size=12,
+		 edge.arrow.size=.5)
+
+plot(r_rat,
+     layout=layout_with_kk,
+     main ="Reichsbürger-Netzwerk",
+		 sub = "politischer Arm / Rat",
+		 asp=0, 
+		 set.seed=12,
+		 default=3:4,
+     layout=layout_with_kk,
+     vertex.size=12,
+		 edge.arrow.size=.5)
+
+```
+##Teilnetzerk-Analyse
+Ich sehe, dass es neben dem Rat auch noch einen Fürhungsstab gibt. Es bestätigt sich auch, dass Prinz Reuss und Birgit Malsack Winkelmann wichtige Akteure in der Gemeinschaft sind. Der militärische Arm zeigt, dass es viele Verbindungen unter den Soldaten gibt und es möglicherweise noch viele unbekannte Mitglieder der Reichsbürger-Szene in diese, gesellschaftlichen Bereich gibt.
+
+
+#Fragen
+1.	Wie interpretieren Sie das erstellte Netzwerk? Wieviel Zeit haben Sie dafür benötigt?
+Die Interpretationen der einzelnen Aspekte des Netzwerks habe ich unter die jeweiligen Codes geschrieben. 
+Ich habe etwa 5 Stunden gebraucht, da ich mehr Node-Attribute hinzugefügt habe und die Erstellung der Listen dadurch länger gedauert hat. Außerdem habe ich mir zusätzlich Gedanken zur detaillierteren Analyse gemacht, auch das hat mich Zeit gekostet. Ansonsten wäre die Aufgabe innerhalb von 3 Stunden lösbar gewesen.
+
+2.	Was war Ihr größter Lernerfolg der Veranstaltung?
+Mein größter Lernerfolg war es zu verstehen, wie man aus öffentlich zugänglichen Daten im Internet ein eigenes Netzwerk erstellen kann. Ich hätte nicht gedacht, dass man durch selbst erstellte Listen so eine komplexe Visualisierung bauen kann und die Analyse der Verbindungen so detailreich ausfallen kann.
+
+3.	Welches Netzwerk möchten Sie gerne selbst untersuchen?
+Dazu muss ich nochmal etwas mehr recherchieren, aber ich finde das Thema Reichsbürger sehr interessant. Auch die ganze Querdenker und Verschwörungstheorie-Bewegung ist ein spannendes Feld. Jedoch weiß ich nicht wie einfach der Zugang zu den nötigen Daten ist.
+
+
+
+
